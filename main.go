@@ -116,7 +116,10 @@ func main() {
 	if err := createIncs(true); err != nil {
 		logErr(err)
 	}
-	if isPfxSet {
+	if isPfxSet { // custom prefix
+		if err := createNamedInc(pfx+".h", fName(sIncludes)); err != nil { // export include
+			logErr(err)
+		}
 		return
 	}
 	if len(name) > 0 {
