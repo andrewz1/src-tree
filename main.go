@@ -18,26 +18,26 @@ const (
 	dirFlag  = "dir"
 	onceFlag = "once"
 	pubFlag  = "pub"
+	addFlag  = "add"
 
-	pubConsts   = "pub_consts.h"
-	pubTypes    = "pub_types.h"
-	pubInlines  = "pub_inlines.h"
-	pubIncludes = "pub_includes.h"
-
-	privConsts   = "priv_consts.h"
-	privTypes    = "priv_types.h"
-	privInlines  = "priv_inlines.h"
-	privIncludes = "priv_includes.h"
+	sConsts   = "_consts.h"
+	sTypes    = "_types.h"
+	sInlines  = "_inlines.h"
+	sIncludes = "_includes.h"
+	pPub      = "pub"
+	pPriv     = "priv"
 )
 
 var (
-	name   string
-	useDir bool
-	once   bool
-	pub    bool
+	name   string // module name
+	useDir bool   // current dir is module name
+	once   bool   // add #pragma once
+	pub    bool   // generate only public tree
+	pfx    string // prefix for files
 
 	isNameSet bool
 	isDirSet  bool
+	isPfxSet  bool
 )
 
 func init() {
@@ -45,6 +45,7 @@ func init() {
 	flag.BoolVar(&useDir, dirFlag, false, "ude directory name as name")
 	flag.BoolVar(&once, onceFlag, false, "add #pragma once to includes")
 	flag.BoolVar(&pub, pubFlag, false, "generate only public part of tree")
+	flag.StringVar(&pfx, addFlag, "", "add part of tree with given prefix (for example xxx give the xxx_consts.h and so on)")
 }
 
 func checkFlags() {
@@ -55,12 +56,24 @@ func checkFlags() {
 			isNameSet = true
 		case dirFlag:
 			isDirSet = true
+		case addFlag:
+			isPfxSet = true
 		}
 	})
 	if isNameSet && isDirSet {
 		fmt.Fprintf(os.Stderr, "flags -%s and -%s not compatible\n", nameFlag, dirFlag)
 		flag.Usage()
 		os.Exit(1)
+	}
+	if isPfxSet {
+		pub = true
+		if len(pfx) == 0 {
+			fmt.Fprintf(os.Stderr, "flag -%s must have non empty arg\n", addFlag)
+			flag.Usage()
+			os.Exit(1)
+		}
+	} else {
+		pfx = pPub
 	}
 	if !isDirSet {
 		return
@@ -72,42 +85,52 @@ func checkFlags() {
 	name = filepath.Base(path)
 }
 
+func fName(suf string) string {
+	return pfx + suf
+}
+
+func createIncs(first bool) (err error) {
+	if first {
+		if err = createNamedInc(fName(sConsts)); err != nil {
+			return
+		}
+	} else {
+		// this is possible only in full creation
+		if err = createNamedInc(fName(sConsts), pPub+sIncludes); err != nil {
+			return
+		}
+	}
+	if err = createNamedInc(fName(sTypes), fName(sConsts)); err != nil {
+		return
+	}
+	if err = createNamedInc(fName(sInlines), fName(sTypes)); err != nil {
+		return
+	}
+	if err = createNamedInc(fName(sIncludes), fName(sInlines)); err != nil {
+		return
+	}
+	return nil
+}
+
 func main() {
 	checkFlags()
-	if err := createNamedInc(pubConsts); err != nil {
-		logErr(err)
-	}
-	if err := createNamedInc(pubTypes, pubConsts); err != nil {
-		logErr(err)
-	}
-	if err := createNamedInc(pubInlines, pubTypes); err != nil {
-		logErr(err)
-	}
-	if err := createNamedInc(pubIncludes, pubInlines); err != nil {
+	if err := createIncs(true); err != nil {
 		logErr(err)
 	}
 	if len(name) > 0 {
-		if err := createNamedInc(name+".h", pubIncludes); err != nil { // export include
+		if err := createNamedInc(name+".h", fName(sIncludes)); err != nil { // export include
 			logErr(err)
 		}
 	}
 	if pub {
 		return
 	}
-	if err := createNamedInc(privConsts, pubIncludes); err != nil {
-		logErr(err)
-	}
-	if err := createNamedInc(privTypes, privConsts); err != nil {
-		logErr(err)
-	}
-	if err := createNamedInc(privInlines, privTypes); err != nil {
-		logErr(err)
-	}
-	if err := createNamedInc(privIncludes, privInlines); err != nil {
+	pfx = pPriv
+	if err := createIncs(false); err != nil {
 		logErr(err)
 	}
 	if len(name) > 0 {
-		if err := createNamedSrc(name+".c", privIncludes); err != nil { // src template
+		if err := createNamedSrc(name+".c", fName(sIncludes)); err != nil { // src template
 			logErr(err)
 		}
 	}
