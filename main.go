@@ -66,7 +66,6 @@ func checkFlags() {
 		os.Exit(1)
 	}
 	if isPfxSet {
-		pub = true
 		if len(pfx) == 0 {
 			fmt.Fprintf(os.Stderr, "flag -%s must have non empty arg\n", addFlag)
 			flag.Usage()
@@ -117,13 +116,13 @@ func main() {
 	if err := createIncs(true); err != nil {
 		logErr(err)
 	}
+	if isPfxSet {
+		return
+	}
 	if len(name) > 0 {
 		if err := createNamedInc(name+".h", fName(sIncludes)); err != nil { // export include
 			logErr(err)
 		}
-	}
-	if pub {
-		return
 	}
 	pfx = pPriv
 	if err := createIncs(false); err != nil {
