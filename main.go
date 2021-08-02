@@ -119,6 +119,8 @@ func defName(iname string) string {
 	r = append(r, '_', '_')
 	for _, b := range []byte(n) {
 		switch {
+		case b >= '0' && b <= '9':
+			r = append(r, b)
 		case b >= 'A' && b <= 'Z':
 			r = append(r, b)
 		case b >= 'a' && b <= 'z':
