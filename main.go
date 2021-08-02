@@ -11,7 +11,7 @@ import (
 
 const (
 	fileMode   = 0644
-	fileCreate = os.O_RDWR | os.O_CREATE | os.O_TRUNC
+	fileCreate = os.O_WRONLY | os.O_CREATE | os.O_EXCL | os.O_TRUNC
 	byteUp     = 'a' - 'A'
 
 	nameFlag = "name"
@@ -20,12 +20,11 @@ const (
 	pubFlag  = "pub"
 	addFlag  = "add"
 
-	sConsts   = "_consts.h"
-	sTypes    = "_types.h"
-	sInlines  = "_inlines.h"
-	sIncludes = "_includes.h"
-	pPub      = "pub"
-	pPriv     = "priv"
+	sConsts  = "_consts.h"
+	sTypes   = "_types.h"
+	sInlines = "_inlines.h"
+	pPub     = "pub"
+	pPriv    = "priv"
 )
 
 var (
@@ -95,7 +94,7 @@ func createIncs(first bool) (err error) {
 		}
 	} else {
 		// this is possible only in full creation
-		if err = createNamedInc(fName(sConsts), pPub+sIncludes); err != nil {
+		if err = createNamedInc(fName(sConsts), pPub+sInlines); err != nil {
 			return
 		}
 	}
@@ -103,9 +102,6 @@ func createIncs(first bool) (err error) {
 		return
 	}
 	if err = createNamedInc(fName(sInlines), fName(sTypes)); err != nil {
-		return
-	}
-	if err = createNamedInc(fName(sIncludes), fName(sInlines)); err != nil {
 		return
 	}
 	return nil
@@ -117,22 +113,28 @@ func main() {
 		logErr(err)
 	}
 	if isPfxSet { // custom prefix
-		if err := createNamedInc(pfx+".h", fName(sIncludes)); err != nil { // export include
+		if err := createNamedInc(pfx+".h", fName(sInlines)); err != nil { // export include
+			logErr(err)
+		}
+		if err := createNamedSrc(pfx+".c", pfx+".h"); err != nil { // src template
 			logErr(err)
 		}
 		return
 	}
 	if len(name) > 0 {
-		if err := createNamedInc(name+".h", fName(sIncludes)); err != nil { // export include
+		if err := createNamedInc(name+".h", fName(sInlines)); err != nil { // export include
 			logErr(err)
 		}
+	}
+	if pub {
+		return
 	}
 	pfx = pPriv
 	if err := createIncs(false); err != nil {
 		logErr(err)
 	}
 	if len(name) > 0 {
-		if err := createNamedSrc(name+".c", fName(sIncludes)); err != nil { // src template
+		if err := createNamedSrc(name+".c", fName(sInlines)); err != nil { // src template
 			logErr(err)
 		}
 	}
@@ -140,7 +142,7 @@ func main() {
 
 func logErr(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 	os.Exit(1)
 }
