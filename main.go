@@ -17,6 +17,7 @@ const (
 	nameFlag = "name"
 	dirFlag  = "dir"
 	onceFlag = "once"
+	pubFlag  = "pub"
 
 	pubConsts   = "pub_consts.h"
 	pubTypes    = "pub_types.h"
@@ -33,6 +34,7 @@ var (
 	name   string
 	useDir bool
 	once   bool
+	pub    bool
 
 	isNameSet bool
 	isDirSet  bool
@@ -42,6 +44,7 @@ func init() {
 	flag.StringVar(&name, nameFlag, "", "module (parent dir) name")
 	flag.BoolVar(&useDir, dirFlag, false, "ude directory name as name")
 	flag.BoolVar(&once, onceFlag, false, "add #pragma once to includes")
+	flag.BoolVar(&pub, pubFlag, false, "generate only public part of tree")
 }
 
 func checkFlags() {
@@ -83,6 +86,14 @@ func main() {
 	if err := createNamedInc(pubIncludes, pubInlines); err != nil {
 		logErr(err)
 	}
+	if len(name) > 0 {
+		if err := createNamedInc(name+".h", pubIncludes); err != nil { // export include
+			logErr(err)
+		}
+	}
+	if pub {
+		return
+	}
 	if err := createNamedInc(privConsts, pubIncludes); err != nil {
 		logErr(err)
 	}
@@ -95,14 +106,10 @@ func main() {
 	if err := createNamedInc(privIncludes, privInlines); err != nil {
 		logErr(err)
 	}
-	if len(name) == 0 {
-		return
-	}
-	if err := createNamedInc(name+".h", pubIncludes); err != nil { // export include
-		logErr(err)
-	}
-	if err := createNamedSrc(name+".c", privIncludes); err != nil { // src template
-		logErr(err)
+	if len(name) > 0 {
+		if err := createNamedSrc(name+".c", privIncludes); err != nil { // src template
+			logErr(err)
+		}
 	}
 }
 
